@@ -1,0 +1,48 @@
+name: Check Appointment Availability
+
+on:
+  # Run every 5 minutes
+  schedule:
+    - cron: "*/5 * * * *"
+
+  # Allow manual triggering from the GitHub Actions tab (useful for testing)
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Check rdv-prefecture slots
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      # ── 1. Checkout repo ────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Python ─────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ── 3. Install Python dependencies ───────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Run the availability checker ──────────────────────────────────
+      #    SMTP credentials are injected from GitHub Secrets.
+      #    config.json provides the département and demarche_id.
+      #    The script exits 0 even when no slots are found, so the workflow
+      #    always shows green unless there is an unexpected error.
+      - name: Run checker
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          # Optional: override SMTP host/port (defaults to Gmail)
+          # SMTP_HOST: smtp.gmail.com
+          # SMTP_PORT: "587"
+        run: |
+          echo "Run started at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          python checker.py
+          echo "Run finished at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
