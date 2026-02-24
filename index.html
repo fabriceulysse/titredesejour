@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moniteur RDV Titre de Séjour</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue:   #1d4ed8;
+    --blue-l: #eff6ff;
+    --blue-b: #bfdbfe;
+    --green:  #16a34a;
+    --green-l:#f0fdf4;
+    --green-b:#bbf7d0;
+    --amber:  #d97706;
+    --amber-l:#fffbeb;
+    --amber-b:#fde68a;
+    --red:    #dc2626;
+    --red-l:  #fef2f2;
+    --gray:   #374151;
+    --gray-l: #f9fafb;
+    --gray-b: #e5e7eb;
+    --border: #d1d5db;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f3f4f6;
+    color: var(--gray);
+    line-height: 1.6;
+    padding: 24px 16px 60px;
+  }
+
+  .container { max-width: 740px; margin: 0 auto; }
+
+  /* ── Header ── */
+  header {
+    background: var(--blue);
+    color: #fff;
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 1.5rem; font-weight: 700; }
+  header p  { margin-top: 6px; opacity: .88; font-size: .95rem; }
+
+  /* ── Alert box ── */
+  .alert {
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border-left: 4px solid;
+    font-size: .92rem;
+  }
+  .alert-amber { background: var(--amber-l); border-color: var(--amber); color: #78350f; }
+  .alert-blue  { background: var(--blue-l);  border-color: var(--blue);  color: #1e3a8a; }
+  .alert strong { display: block; margin-bottom: 4px; }
+
+  /* ── Card / Step ── */
+  .card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--gray-l);
+  }
+  .step-badge {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    font-weight: 700;
+    font-size: .9rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-badge.done { background: var(--green); }
+  .card-header h2 { font-size: 1.05rem; font-weight: 600; }
+  .card-body { padding: 24px; }
+
+  /* ── Form ── */
+  .form-group { margin-bottom: 20px; }
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: .88rem;
+    margin-bottom: 6px;
+    color: #111827;
+  }
+  .hint {
+    font-size: .8rem;
+    color: #6b7280;
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+  select, input[type="text"], input[type="email"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    font-size: .95rem;
+    color: var(--gray);
+    background: #fff;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  select:focus, input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(29,78,216,.15);
+  }
+
+  /* ── Email tags ── */
+  .email-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 42px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: #fff;
+    cursor: text;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .email-tags:focus-within {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(29,78,216,.15);
+  }
+  .email-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--blue-b);
+    color: #1e40af;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: .85rem;
+    font-weight: 500;
+  }
+  .email-tag button {
+    background: none; border: none; cursor: pointer;
+    color: #1e40af; font-size: 1rem; line-height: 1;
+    padding: 0 2px;
+    opacity: .7;
+  }
+  .email-tag button:hover { opacity: 1; }
+  #email-input {
+    border: none; outline: none; background: transparent;
+    font-size: .9rem; min-width: 180px; flex: 1;
+    padding: 2px 4px;
+  }
+
+  /* ── Config preview ── */
+  .config-box {
+    position: relative;
+    background: #1e293b;
+    border-radius: 8px;
+    padding: 20px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: .85rem;
+    color: #e2e8f0;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.2);
+    color: #e2e8f0;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: .78rem;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,.2); }
+  .copy-btn.copied { background: var(--green); border-color: var(--green); }
+
+  /* ── Steps list ── */
+  .steps { list-style: none; }
+  .steps li {
+    display: flex;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: .92rem;
+  }
+  .steps li:last-child { border-bottom: none; padding-bottom: 0; }
+  .steps .num {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--blue-b);
+    color: var(--blue);
+    font-weight: 700;
+    font-size: .8rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .steps .step-body strong { display: block; margin-bottom: 3px; color: #111827; }
+  .steps .step-body code {
+    background: var(--gray-b);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: .85em;
+  }
+  .steps .step-body a {
+    color: var(--blue);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .steps .step-body a:hover { text-decoration: underline; }
+
+  /* ── Secrets table ── */
+  .secrets-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+    margin-top: 12px;
+  }
+  .secrets-table th {
+    text-align: left;
+    background: var(--gray-l);
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .secrets-table td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .secrets-table code {
+    background: var(--gray-b);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: .9em;
+  }
+  .secret-val {
+    font-style: italic;
+    color: #6b7280;
+    font-size: .85em;
+  }
+
+  /* ── Generate button ── */
+  .btn-primary {
+    display: block;
+    width: 100%;
+    padding: 13px;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+    margin-top: 4px;
+  }
+  .btn-primary:hover  { background: #1e40af; }
+  .btn-primary:active { transform: scale(.99); }
+
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px;
+    border: 2px solid var(--blue);
+    color: var(--blue);
+    background: #fff;
+    border-radius: 8px;
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+    margin-top: 12px;
+  }
+  .btn-outline:hover { background: var(--blue); color: #fff; }
+
+  /* ── Hidden section ── */
+  .hidden { display: none; }
+
+  /* ── Validation ── */
+  .field-error { color: var(--red); font-size: .8rem; margin-top: 4px; }
+  input.invalid, select.invalid { border-color: var(--red); }
+
+  /* ── Demarche finder ── */
+  .demarche-helper {
+    margin-top: 10px;
+    background: var(--blue-l);
+    border: 1px solid var(--blue-b);
+    border-radius: 7px;
+    padding: 12px 14px;
+    font-size: .83rem;
+    color: #1e3a8a;
+  }
+  .demarche-helper strong { display: block; margin-bottom: 6px; }
+
+  /* ── Département select ── */
+  #dept-select { background-image: none; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <h1>🇫🇷 Moniteur de RDV — Titre de Séjour</h1>
+    <p>Configurez votre moniteur gratuit en 5 minutes. Il vérifie les créneaux toutes les 5 minutes et vous envoie un email dès qu'un rendez-vous est disponible.</p>
+  </header>
+
+  <!-- "No slots" explanation -->
+  <div class="alert alert-amber">
+    <strong>🔴 "Nous ne sommes pas en mesure de traiter votre demande" — que signifie cette erreur ?</strong>
+    Ce message sur le site ANEF ne signifie PAS qu'il y a un problème avec votre dossier. Il signifie simplement qu'<strong>aucun créneau n'est disponible en ce moment</strong>. Votre dossier est en ordre. Les créneaux s'ouvrent souvent à l'intérieur de la fenêtre de 2 mois avant l'expiration de votre titre.
+  </div>
+
+  <div class="alert alert-blue">
+    <strong>⏰ Quand activer le moniteur ?</strong>
+    Les créneaux ne sont généralement accessibles que dans les <strong>2 mois avant l'expiration</strong> de votre titre de séjour. Activez ce moniteur dès que vous entrez dans cette fenêtre.
+  </div>
+
+  <!-- ── STEP 1: Configure ── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="step-badge" id="badge-1">1</span>
+      <h2>Configurer votre moniteur</h2>
+    </div>
+    <div class="card-body">
+
+      <!-- Département -->
+      <div class="form-group">
+        <label for="dept-select">Votre département</label>
+        <select id="dept-select">
+          <option value="">— Sélectionnez votre département —</option>
+          <optgroup label="Île-de-France">
+            <option value="75">75 — Paris</option>
+            <option value="77">77 — Seine-et-Marne</option>
+            <option value="78">78 — Yvelines</option>
+            <option value="91">91 — Essonne</option>
+            <option value="92">92 — Hauts-de-Seine</option>
+            <option value="93">93 — Seine-Saint-Denis</option>
+            <option value="94">94 — Val-de-Marne</option>
+            <option value="95">95 — Val-d'Oise</option>
+          </optgroup>
+          <optgroup label="Autres régions">
+            <option value="06">06 — Alpes-Maritimes (Nice)</option>
+            <option value="13">13 — Bouches-du-Rhône (Marseille)</option>
+            <option value="14">14 — Calvados (Caen)</option>
+            <option value="21">21 — Côte-d'Or (Dijon)</option>
+            <option value="25">25 — Doubs (Besançon)</option>
+            <option value="31">31 — Haute-Garonne (Toulouse)</option>
+            <option value="33">33 — Gironde (Bordeaux)</option>
+            <option value="34">34 — Hérault (Montpellier)</option>
+            <option value="35">35 — Ille-et-Vilaine (Rennes)</option>
+            <option value="38">38 — Isère (Grenoble)</option>
+            <option value="44">44 — Loire-Atlantique (Nantes)</option>
+            <option value="45">45 — Loiret (Orléans)</option>
+            <option value="49">49 — Maine-et-Loire (Angers)</option>
+            <option value="54">54 — Meurthe-et-Moselle (Nancy)</option>
+            <option value="57">57 — Moselle (Metz)</option>
+            <option value="59">59 — Nord (Lille)</option>
+            <option value="60">60 — Oise (Beauvais)</option>
+            <option value="62">62 — Pas-de-Calais (Arras)</option>
+            <option value="67">67 — Bas-Rhin (Strasbourg)</option>
+            <option value="69">69 — Rhône (Lyon)</option>
+            <option value="76">76 — Seine-Maritime (Rouen)</option>
+            <option value="80">80 — Somme (Amiens)</option>
+            <option value="83">83 — Var (Toulon)</option>
+            <option value="84">84 — Vaucluse (Avignon)</option>
+          </optgroup>
+          <optgroup label="DOM-TOM">
+            <option value="971">971 — Guadeloupe</option>
+            <option value="972">972 — Martinique</option>
+            <option value="973">973 — Guyane</option>
+            <option value="974">974 — La Réunion</option>
+            <option value="976">976 — Mayotte</option>
+          </optgroup>
+        </select>
+        <p class="hint">Votre département de résidence. Si le vôtre n'est pas listé, saisissez simplement son code dans le champ ci-dessous.</p>
+      </div>
+
+      <!-- Demarche ID -->
+      <div class="form-group">
+        <label for="demarche-input">ID de démarche <span style="font-weight:400;color:#6b7280">(depuis l'URL du site)</span></label>
+        <input type="text" id="demarche-input" placeholder="ex: 4082" maxlength="10">
+        <p class="hint">
+          Allez sur <a href="https://www.rdv-prefecture.interieur.gouv.fr" target="_blank" rel="noopener">rdv-prefecture.interieur.gouv.fr</a>,
+          sélectionnez votre département et votre démarche, puis copiez le nombre dans l'URL :<br>
+          <code style="font-size:.82em;background:#f3f4f6;padding:2px 5px;border-radius:4px">.../rdvpref/reservation/demarche/<strong>XXXX</strong>/</code>
+        </p>
+
+        <div class="demarche-helper">
+          <strong>IDs fréquents (à titre indicatif — vérifiez sur le site officiel)</strong>
+          <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+            <tr><td style="padding:2px 8px 2px 0;color:#374151">Renouvellement titre de séjour</td><td style="color:#1e40af;font-weight:600">varie selon dép. — cherchez "Renouvellement" dans l'URL</td></tr>
+            <tr><td style="padding:2px 8px 2px 0;color:#374151">Retrait titre — première demande (Paris)</td><td style="color:#1e40af;font-weight:600">≈ 5082</td></tr>
+            <tr><td style="padding:2px 8px 2px 0;color:#374151">Retrait titre — renouvellement (Paris)</td><td style="color:#1e40af;font-weight:600">≈ 4293</td></tr>
+            <tr><td style="padding:2px 8px 2px 0;color:#374151">Renouvellement — jeunes majeurs (Seine-et-Marne)</td><td style="color:#1e40af;font-weight:600">3987</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Emails -->
+      <div class="form-group">
+        <label>Email(s) de notification</label>
+        <div class="email-tags" id="email-tags" onclick="document.getElementById('email-input').focus()">
+          <input type="text" id="email-input" placeholder="votre@email.com — Entrée pour ajouter">
+        </div>
+        <p class="hint">Tapez une adresse email et appuyez sur <strong>Entrée</strong> ou <strong>Virgule</strong>. Vous pouvez ajouter plusieurs adresses.</p>
+        <div class="field-error hidden" id="email-error">Adresse email invalide.</div>
+      </div>
+
+      <button class="btn-primary" onclick="generate()">Générer ma configuration →</button>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: config.json ── -->
+  <div class="card hidden" id="step2">
+    <div class="card-header">
+      <span class="step-badge done" id="badge-2">✓</span>
+      <h2>Votre <code style="font-family:monospace;font-size:.95em">config.json</code> généré</h2>
+    </div>
+    <div class="card-body">
+      <p style="margin-bottom:14px;font-size:.92rem">Copiez ce contenu — vous en aurez besoin à l'étape 3.</p>
+      <div class="config-box" id="config-output">
+        <button class="copy-btn" onclick="copyConfig(this)">Copier</button>
+        <span id="config-text"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: Setup ── -->
+  <div class="card hidden" id="step3">
+    <div class="card-header">
+      <span class="step-badge" id="badge-3">3</span>
+      <h2>Mettre en place le moniteur (tout dans le navigateur)</h2>
+    </div>
+    <div class="card-body">
+      <ul class="steps">
+
+        <li>
+          <span class="num">A</span>
+          <div class="step-body">
+            <strong>Forkez le dépôt GitHub</strong>
+            Cliquez sur le bouton ci-dessous. GitHub crée une copie privée sous votre compte — c'est là que tournera le moniteur.<br>
+            <a class="btn-outline" href="https://github.com/fabriceulysse/titredesejour/fork" target="_blank" rel="noopener">
+              ⑃ Forker le dépôt sur GitHub
+            </a>
+          </div>
+        </li>
+
+        <li>
+          <span class="num">B</span>
+          <div class="step-body">
+            <strong>Remplacez le fichier <code>config.json</code></strong>
+            Dans votre fork, cliquez sur <code>config.json</code>, puis sur l'icône crayon ✏️. Effacez tout le contenu et collez le JSON que vous avez copié à l'étape 2. Cliquez sur <strong>Commit changes</strong>.
+          </div>
+        </li>
+
+        <li>
+          <span class="num">C</span>
+          <div class="step-body">
+            <strong>Créez un mot de passe d'application Gmail</strong>
+            Votre compte Gmail normal ne fonctionne pas pour l'envoi automatique — vous devez créer un <em>App Password</em> :
+            <ol style="margin-top:8px;margin-left:18px;font-size:.88rem;line-height:1.8">
+              <li>Activez la validation en 2 étapes : <a href="https://myaccount.google.com/security" target="_blank">myaccount.google.com/security</a></li>
+              <li>Générez un mot de passe d'app : <a href="https://myaccount.google.com/apppasswords" target="_blank">myaccount.google.com/apppasswords</a></li>
+              <li>Nom : "RDV Monitor" → cliquez <strong>Créer</strong></li>
+              <li>Copiez le mot de passe à 16 caractères (il ne s'affiche qu'une fois)</li>
+            </ol>
+          </div>
+        </li>
+
+        <li>
+          <span class="num">D</span>
+          <div class="step-body">
+            <strong>Ajoutez vos secrets GitHub</strong>
+            Dans votre fork : <strong>Settings → Secrets and variables → Actions → New repository secret</strong>
+            <table class="secrets-table">
+              <thead>
+                <tr><th>Nom du secret</th><th>Valeur</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>SMTP_USER</code></td>
+                  <td id="secret-smtp-user"><span class="secret-val">votre adresse Gmail (ex: jean@gmail.com)</span></td>
+                </tr>
+                <tr>
+                  <td><code>SMTP_PASSWORD</code></td>
+                  <td><span class="secret-val">le mot de passe à 16 caractères de l'étape C</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </li>
+
+        <li>
+          <span class="num">E</span>
+          <div class="step-body">
+            <strong>Activez GitHub Actions</strong>
+            Dans votre fork, cliquez sur l'onglet <strong>Actions</strong>. Si un message vous demande d'activer les workflows, acceptez. Cliquez ensuite sur <strong>Check Appointment Availability → Run workflow → Run workflow</strong> pour lancer un premier test manuel.
+          </div>
+        </li>
+
+        <li>
+          <span class="num">F</span>
+          <div class="step-body">
+            <strong>Vérifiez que ça fonctionne</strong>
+            Actualisez la page Actions après quelques secondes. Cliquez sur le workflow run. Dans les logs, vous devriez voir :<br>
+            <code style="background:#f3f4f6;display:inline-block;margin-top:6px;padding:4px 8px;border-radius:4px;font-size:.82rem">No slots available. Will check again at the next scheduled run.</code><br>
+            C'est normal si aucun créneau n'est disponible. Le moniteur continuera à vérifier toutes les 5 minutes automatiquement. Quand un créneau s'ouvre, vous recevrez un email.
+          </div>
+        </li>
+
+      </ul>
+
+      <div class="alert alert-amber" style="margin-top:20px;margin-bottom:0">
+        <strong>⚠️ Ce moniteur vous alerte uniquement — il ne prend pas rendez-vous à votre place.</strong>
+        Dès que vous recevez l'email, connectez-vous immédiatement sur le site officiel pour réserver. Les créneaux disparaissent souvent en moins d'une minute.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  // ── Email tag widget ──────────────────────────────────────────────────────
+  const emails = [];
+  const emailInput = document.getElementById('email-input');
+  const emailTags  = document.getElementById('email-tags');
+  const emailError = document.getElementById('email-error');
+
+  function isValidEmail(e) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+  }
+
+  function addEmail(raw) {
+    const addr = raw.trim().replace(/,+$/, '');
+    if (!addr) return;
+    if (!isValidEmail(addr)) {
+      emailError.classList.remove('hidden');
+      return;
+    }
+    if (emails.includes(addr)) {
+      emailInput.value = '';
+      return;
+    }
+    emailError.classList.add('hidden');
+    emails.push(addr);
+    renderTags();
+    emailInput.value = '';
+  }
+
+  function removeEmail(addr) {
+    const i = emails.indexOf(addr);
+    if (i > -1) emails.splice(i, 1);
+    renderTags();
+  }
+
+  function renderTags() {
+    // Remove all tag elements (not the input)
+    emailTags.querySelectorAll('.email-tag').forEach(t => t.remove());
+    emails.forEach(addr => {
+      const tag = document.createElement('span');
+      tag.className = 'email-tag';
+      tag.innerHTML = `${addr}<button type="button" title="Supprimer" onclick="removeEmail('${addr}')">×</button>`;
+      emailTags.insertBefore(tag, emailInput);
+    });
+    if (emails.length > 0) updateConfig();
+  }
+
+  emailInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addEmail(emailInput.value);
+    }
+    if (e.key === 'Backspace' && emailInput.value === '' && emails.length > 0) {
+      removeEmail(emails[emails.length - 1]);
+    }
+  });
+  emailInput.addEventListener('blur', () => {
+    if (emailInput.value.trim()) addEmail(emailInput.value);
+  });
+
+  // ── Département ↔ custom input sync ──────────────────────────────────────
+  const deptSelect = document.getElementById('dept-select');
+  deptSelect.addEventListener('change', () => {
+    // If they pick from dropdown, clear any manual override — they can still
+    // type in the demarche field freely
+  });
+
+  // ── Generate ─────────────────────────────────────────────────────────────
+  function generate() {
+    let ok = true;
+
+    const dept = deptSelect.value;
+    const demarche = document.getElementById('demarche-input').value.trim();
+
+    // Validate département
+    if (!dept) {
+      deptSelect.classList.add('invalid');
+      ok = false;
+    } else {
+      deptSelect.classList.remove('invalid');
+    }
+
+    // Validate demarche
+    const deInput = document.getElementById('demarche-input');
+    if (!demarche || !/^\d+$/.test(demarche)) {
+      deInput.classList.add('invalid');
+      ok = false;
+    } else {
+      deInput.classList.remove('invalid');
+    }
+
+    // Validate emails
+    if (emailInput.value.trim()) addEmail(emailInput.value);
+    if (emails.length === 0) {
+      emailTags.style.borderColor = 'var(--red)';
+      ok = false;
+    } else {
+      emailTags.style.borderColor = '';
+    }
+
+    if (!ok) return;
+
+    updateConfig();
+    document.getElementById('step2').classList.remove('hidden');
+    document.getElementById('step3').classList.remove('hidden');
+    document.getElementById('badge-1').textContent = '✓';
+    document.getElementById('badge-1').classList.add('done');
+
+    // Pre-fill the SMTP user hint
+    if (emails.length > 0) {
+      document.getElementById('secret-smtp-user').innerHTML =
+        `<span style="color:#374151">Votre adresse Gmail d'envoi (peut être différente de <code>${emails[0]}</code>)</span>`;
+    }
+
+    // Smooth scroll
+    setTimeout(() => {
+      document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+  }
+
+  function updateConfig() {
+    const dept    = deptSelect.value || '??';
+    const demarche = document.getElementById('demarche-input').value.trim() || '??';
+    const emailList = emails.map(e => `    "${e}"`).join(',\n');
+
+    const json = `{
+  "departement": "${dept}",
+  "demarche_id": "${demarche}",
+  "subscribers": [
+${emailList || '    "votre@email.com"'}
+  ]
+}`;
+    document.getElementById('config-text').textContent = json;
+  }
+
+  // ── Copy config ───────────────────────────────────────────────────────────
+  function copyConfig(btn) {
+    const text = document.getElementById('config-text').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ Copié !';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copier';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = '✓ Copié !';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copier'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
