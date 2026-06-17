@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Classroom Hangman</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --accent: #38bdf8;
+    --accent-2: #34d399;
+    --danger: #f87171;
+    --warning: #fbbf24;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --key: #334155;
+    --key-hover: #475569;
+    --line: #e2e8f0;
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, var(--bg));
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 18px 18px 40px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, 1rem + 2.5vw, 2.6rem);
+    margin: 0;
+    letter-spacing: .5px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h1 .emoji { filter: drop-shadow(0 2px 6px rgba(0,0,0,.4)); }
+
+  .scoreboard {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .pill {
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-weight: 700;
+    font-size: 1rem;
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+  }
+  .pill.win { color: var(--accent-2); }
+  .pill.loss { color: var(--danger); }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: var(--radius);
+    padding: 12px;
+    box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .field label {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    font-weight: 700;
+  }
+  select, button, .toggle {
+    font-family: inherit;
+    font-size: 1rem;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid #3b4a61;
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: transform .05s ease, background .15s ease, border-color .15s ease;
+  }
+  select:hover, button:hover, .toggle:hover { background: var(--key-hover); }
+  button:active { transform: translateY(1px); }
+  button.primary {
+    background: linear-gradient(180deg, var(--accent), #0ea5e9);
+    border: none;
+    color: #04222e;
+    font-weight: 800;
+  }
+  button.primary:hover { filter: brightness(1.07); background: linear-gradient(180deg, var(--accent), #0ea5e9); }
+  .spacer { flex: 1 1 auto; }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
+  .toggle input { accent-color: var(--accent); width: 18px; height: 18px; }
+
+  /* Game area */
+  .game {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) 1.4fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    .game { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+
+  .stage { text-align: center; }
+  svg.gallows { width: 100%; max-width: 320px; height: auto; }
+  .gallows .frame { stroke: var(--line); stroke-width: 6; stroke-linecap: round; fill: none; }
+  .gallows .person {
+    stroke: var(--accent-2);
+    stroke-width: 6;
+    stroke-linecap: round;
+    fill: none;
+    opacity: 0;
+    transition: opacity .25s ease;
+  }
+  .gallows .person.show { opacity: 1; }
+  .gallows.danger .person.show { stroke: var(--danger); }
+
+  .category-tag {
+    display: inline-block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: .95rem;
+  }
+  .category-tag b { color: var(--accent); }
+
+  .lives {
+    margin-top: 8px;
+    font-weight: 700;
+    color: var(--warning);
+    min-height: 1.4em;
+  }
+
+  /* Word display */
+  .play-col { display: flex; flex-direction: column; gap: 16px; }
+
+  .word {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    justify-content: center;
+    align-items: flex-end;
+    min-height: 90px;
+    padding: 8px 4px;
+  }
+  .letter-slot {
+    display: inline-flex;
+    align-items: flex-end;
+    justify-content: center;
+    min-width: 38px;
+    font-size: clamp(1.8rem, 1rem + 3vw, 3rem);
+    font-weight: 800;
+    border-bottom: 5px solid var(--muted);
+    padding-bottom: 4px;
+    line-height: 1;
+    transition: color .2s ease, border-color .2s ease;
+  }
+  .letter-slot.revealed { border-bottom-color: var(--accent-2); }
+  .letter-slot.space { border-bottom: none; min-width: 22px; }
+  .letter-slot.missed { color: var(--danger); border-bottom-color: var(--danger); }
+
+  .hint-row {
+    text-align: center;
+    min-height: 1.6em;
+    color: var(--muted);
+  }
+  .hint-row .hint-text { color: var(--warning); font-style: italic; }
+  button.linklike {
+    background: none;
+    border: none;
+    color: var(--accent);
+    text-decoration: underline;
+    padding: 4px 6px;
+    font-size: .95rem;
+  }
+  button.linklike:hover { background: none; color: var(--accent-2); }
+
+  /* Keyboard */
+  .keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  .krow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .key {
+    width: clamp(34px, 7vw, 52px);
+    height: clamp(40px, 8vw, 56px);
+    font-size: clamp(1rem, .6rem + 1.4vw, 1.4rem);
+    font-weight: 800;
+    text-transform: uppercase;
+    background: var(--key);
+    border: 1px solid #3b4a61;
+    border-radius: 10px;
+    color: var(--text);
+    cursor: pointer;
+    transition: transform .05s ease, background .15s ease, opacity .15s ease;
+  }
+  .key:hover:not(:disabled) { background: var(--key-hover); }
+  .key:active:not(:disabled) { transform: translateY(2px); }
+  .key.correct { background: var(--accent-2); color: #04261a; border-color: transparent; }
+  .key.wrong { background: var(--danger); color: #2b0606; border-color: transparent; opacity: .85; }
+  .key:disabled { cursor: default; }
+
+  /* Banner / overlay */
+  .banner {
+    text-align: center;
+    font-size: clamp(1.3rem, 1rem + 1.5vw, 2rem);
+    font-weight: 900;
+    padding: 14px;
+    border-radius: var(--radius);
+    display: none;
+  }
+  .banner.win { display: block; background: rgba(52,211,153,.15); color: var(--accent-2); border: 1px solid rgba(52,211,153,.4); }
+  .banner.lose { display: block; background: rgba(248,113,113,.15); color: var(--danger); border: 1px solid rgba(248,113,113,.4); }
+  .banner .answer { display:block; font-size: .8em; color: var(--text); margin-top: 6px; font-weight: 700; }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(2,6,23,.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: var(--radius);
+    padding: 22px;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: var(--shadow);
+  }
+  .modal h2 { margin-top: 0; }
+  .modal p { color: var(--muted); }
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid #3b4a61;
+    border-radius: 10px;
+    padding: 12px;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: .95rem;
+    resize: vertical;
+  }
+  input[type="text"] {
+    width: 100%;
+    font-size: 1.4rem;
+    text-align: center;
+    letter-spacing: .15em;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid #3b4a61;
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: .85rem;
+    margin-top: 26px;
+  }
+  kbd {
+    background: var(--panel-2);
+    border: 1px solid #3b4a61;
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    padding: 1px 7px;
+    font-family: inherit;
+    font-size: .85em;
+  }
+  .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="emoji">🎯</span> Classroom Hangman</h1>
+    <div class="scoreboard">
+      <span class="pill win">🏆 Wins: <span id="winCount">0</span></span>
+      <span class="pill loss">💀 Losses: <span id="lossCount">0</span></span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="field">
+      <label for="category">Word set</label>
+      <select id="category" aria-label="Choose word set"></select>
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button class="primary" id="newWordBtn">↻ New word</button>
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button id="customBtn" title="Use your own list of words">✏️ Custom words</button>
+    </div>
+    <div class="field">
+      <label>&nbsp;</label>
+      <button id="secretBtn" title="One person types a secret word for others to guess">🔒 Secret word</button>
+    </div>
+    <div class="spacer"></div>
+    <label class="toggle" title="Reveal a hint for each word">
+      <input type="checkbox" id="hintToggle" /> Hints
+    </label>
+    <label class="toggle" title="Play sound effects">
+      <input type="checkbox" id="soundToggle" checked /> Sound
+    </label>
+    <button id="fullscreenBtn" title="Great for projectors">⛶ Fullscreen</button>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="game">
+    <div class="panel stage">
+      <svg class="gallows" id="gallows" viewBox="0 0 200 250" role="img" aria-label="Hangman drawing">
+        <!-- gallows frame -->
+        <line class="frame" x1="20"  y1="235" x2="110" y2="235" />
+        <line class="frame" x1="50"  y1="235" x2="50"  y2="20"  />
+        <line class="frame" x1="47"  y1="20"  x2="145" y2="20"  />
+        <line class="frame" x1="145" y1="20"  x2="145" y2="48"  />
+        <!-- person (revealed with wrong guesses) -->
+        <circle class="person" data-part="0" cx="145" cy="65"  r="18" />
+        <line   class="person" data-part="1" x1="145" y1="83"  x2="145" y2="150" />
+        <line   class="person" data-part="2" x1="145" y1="100" x2="118" y2="125" />
+        <line   class="person" data-part="3" x1="145" y1="100" x2="172" y2="125" />
+        <line   class="person" data-part="4" x1="145" y1="150" x2="120" y2="185" />
+        <line   class="person" data-part="5" x1="145" y1="150" x2="170" y2="185" />
+      </svg>
+      <div class="category-tag">Set: <b id="categoryLabel">—</b></div>
+      <div class="lives" id="lives"></div>
+    </div>
+
+    <div class="play-col">
+      <div class="panel">
+        <div class="word" id="word" aria-live="polite"></div>
+        <div class="hint-row" id="hintRow"></div>
+      </div>
+
+      <div class="panel">
+        <div class="keyboard" id="keyboard"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Type on your keyboard or click the letters. Press <kbd>Enter</kbd> for a new word.
+    Accents are handled automatically (press <b>E</b> to match <b>é, è, ê</b>).
+  </footer>
+</div>
+
+<!-- Custom words modal -->
+<div class="modal-backdrop" id="customModal">
+  <div class="modal">
+    <h2>✏️ Your own words</h2>
+    <p>One word or phrase per line. Add an optional hint after a <code>|</code> (pipe).</p>
+    <textarea id="customInput" placeholder="photosynthesis | how plants make food
+the water cycle | evaporation, condensation, precipitation
+métamorphose | la transformation de la chenille"></textarea>
+    <div class="modal-actions">
+      <button id="customCancel">Cancel</button>
+      <button class="primary" id="customSave">Save &amp; play</button>
+    </div>
+  </div>
+</div>
+
+<!-- Secret word modal -->
+<div class="modal-backdrop" id="secretModal">
+  <div class="modal">
+    <h2>🔒 Secret word</h2>
+    <p>One person types a word; everyone else looks away! It stays hidden on screen.</p>
+    <input type="text" id="secretInput" placeholder="type the word…" autocomplete="off" spellcheck="false" />
+    <p style="margin-top:12px">Optional hint:</p>
+    <input type="text" id="secretHint" placeholder="(optional hint)" autocomplete="off" />
+    <div class="modal-actions">
+      <button id="secretCancel">Cancel</button>
+      <button class="primary" id="secretSave">Start guessing</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------------------------------------------------------------
+   * Built-in word sets. Each entry: [word, optionalHint]
+   * Edit these freely, or use the "Custom words" button in class.
+   * ------------------------------------------------------------- */
+  const WORD_SETS = {
+    "Animals": [
+      ["elephant", "The largest land animal"],
+      ["giraffe", "Has a very long neck"],
+      ["kangaroo", "Hops, and has a pouch"],
+      ["dolphin", "A clever sea mammal"],
+      ["penguin", "A bird that cannot fly"],
+      ["butterfly", "Has colourful wings"],
+      ["crocodile", "A big reptile with sharp teeth"],
+      ["octopus", "Has eight arms"],
+      ["squirrel", "Loves to collect nuts"],
+      ["hedgehog", "Covered in spines"],
+      ["tortoise", "Carries its home on its back"],
+      ["flamingo", "A pink wading bird"],
+      ["cheetah", "The fastest land animal"],
+      ["chameleon", "Can change its colour"]
+    ],
+    "Countries": [
+      ["canada", "Has a maple leaf on its flag"],
+      ["brazil", "Home of the Amazon rainforest"],
+      ["japan", "Land of the rising sun"],
+      ["egypt", "Famous for its pyramids"],
+      ["france", "Home of the Eiffel Tower"],
+      ["germany", "Famous for the Autobahn"],
+      ["australia", "An island continent"],
+      ["mexico", "Famous for tacos and pyramids"],
+      ["india", "Home of the Taj Mahal"],
+      ["kenya", "Known for safaris"],
+      ["norway", "Land of the fjords"],
+      ["thailand", "Known for its temples and beaches"],
+      ["argentina", "Famous for tango and football"],
+      ["morocco", "Has the city of Marrakesh"]
+    ],
+    "Food": [
+      ["pizza", "Round, with cheese and toppings"],
+      ["banana", "A long yellow fruit"],
+      ["sandwich", "Two slices of bread with a filling"],
+      ["chocolate", "A sweet treat made from cocoa"],
+      ["broccoli", "A green vegetable like a little tree"],
+      ["spaghetti", "Long thin pasta"],
+      ["pancake", "Flat and flipped in a pan"],
+      ["strawberry", "A red fruit with tiny seeds"],
+      ["pineapple", "Spiky outside, sweet inside"],
+      ["hamburger", "A patty in a bun"],
+      ["watermelon", "Big, green outside, red inside"],
+      ["popcorn", "A snack that pops when heated"]
+    ],
+    "Sports": [
+      ["soccer", "Played with a round ball and goals"],
+      ["basketball", "Shoot the ball into a hoop"],
+      ["swimming", "A sport done in water"],
+      ["tennis", "Played with a racquet and a net"],
+      ["volleyball", "Hit the ball over a high net"],
+      ["cycling", "Racing on bikes"],
+      ["baseball", "Hit the ball and run the bases"],
+      ["gymnastics", "Flips, beams and bars"],
+      ["skiing", "Sliding down snowy slopes"],
+      ["badminton", "Played with a shuttlecock"]
+    ],
+    "Science": [
+      ["gravity", "Pulls things toward the ground"],
+      ["molecule", "Two or more atoms joined together"],
+      ["volcano", "A mountain that can erupt"],
+      ["electron", "A tiny negatively charged particle"],
+      ["skeleton", "All the bones in the body"],
+      ["oxygen", "The gas we breathe in"],
+      ["magnet", "Attracts iron and steel"],
+      ["telescope", "Used to see distant stars"],
+      ["planet", "Earth is one of these"],
+      ["microscope", "Used to see very tiny things"],
+      ["evaporation", "When water turns into vapour"]
+    ],
+    "Jobs": [
+      ["teacher", "Helps students learn"],
+      ["doctor", "Helps people who are sick"],
+      ["engineer", "Designs and builds things"],
+      ["firefighter", "Puts out fires"],
+      ["scientist", "Does experiments and research"],
+      ["pilot", "Flies an aeroplane"],
+      ["farmer", "Grows crops and raises animals"],
+      ["nurse", "Cares for patients"],
+      ["carpenter", "Builds things from wood"],
+      ["astronaut", "Travels into space"],
+      ["veterinarian", "A doctor for animals"]
+    ],
+    "School subjects": [
+      ["mathematics", "Numbers, shapes and equations"],
+      ["history", "The study of the past"],
+      ["geography", "The study of the Earth and maps"],
+      ["chemistry", "The study of substances and reactions"],
+      ["biology", "The study of living things"],
+      ["music", "The study of sound and song"],
+      ["literature", "The study of written works"],
+      ["physics", "The study of matter and energy"],
+      ["language", "The study of words and grammar"],
+      ["computing", "The study of computers and code"]
+    ]
+  };
+
+  const MAX_WRONG = 6; // matches the 6 body parts of the drawing
+
+  /* ----------------------------- State ----------------------------- */
+  const state = {
+    setName: "Animals",
+    customWords: [],          // array of [word, hint]
+    word: "",                 // display word (original, may have accents/spaces)
+    hint: "",
+    guessed: new Set(),       // normalized letters guessed
+    wrong: 0,
+    status: "playing",        // playing | won | lost
+    wins: 0,
+    losses: 0,
+    showHint: false,
+    sound: true,
+    lastSecretSet: null       // remembers we are in secret mode
+  };
+
+  /* --------------------------- Elements ---------------------------- */
+  const el = {
+    category: document.getElementById("category"),
+    categoryLabel: document.getElementById("categoryLabel"),
+    newWordBtn: document.getElementById("newWordBtn"),
+    customBtn: document.getElementById("customBtn"),
+    secretBtn: document.getElementById("secretBtn"),
+    hintToggle: document.getElementById("hintToggle"),
+    soundToggle: document.getElementById("soundToggle"),
+    fullscreenBtn: document.getElementById("fullscreenBtn"),
+    word: document.getElementById("word"),
+    hintRow: document.getElementById("hintRow"),
+    keyboard: document.getElementById("keyboard"),
+    gallows: document.getElementById("gallows"),
+    lives: document.getElementById("lives"),
+    banner: document.getElementById("banner"),
+    winCount: document.getElementById("winCount"),
+    lossCount: document.getElementById("lossCount"),
+    parts: Array.from(document.querySelectorAll(".gallows .person")),
+    // modals
+    customModal: document.getElementById("customModal"),
+    customInput: document.getElementById("customInput"),
+    customSave: document.getElementById("customSave"),
+    customCancel: document.getElementById("customCancel"),
+    secretModal: document.getElementById("secretModal"),
+    secretInput: document.getElementById("secretInput"),
+    secretHint: document.getElementById("secretHint"),
+    secretSave: document.getElementById("secretSave"),
+    secretCancel: document.getElementById("secretCancel")
+  };
+
+  /* ---------------------------- Helpers ---------------------------- */
+  // Remove accents/diacritics so "é" matches "e".
+  function normalize(ch) {
+    return ch.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  }
+  function isLetter(ch) {
+    return /\p{L}/u.test(ch);
+  }
+
+  // Web Audio beeps (no external files needed).
+  let audioCtx = null;
+  function tone(freq, dur, type) {
+    if (!state.sound) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type || "sine";
+      o.frequency.value = freq;
+      o.connect(g); g.connect(audioCtx.destination);
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      o.start();
+      o.stop(audioCtx.currentTime + dur);
+    } catch (e) { /* ignore audio errors */ }
+  }
+  function playCorrect() { tone(660, 0.12, "sine"); }
+  function playWrong()   { tone(160, 0.25, "sawtooth"); }
+  function playWin()     { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.18,"triangle"), i*120)); }
+  function playLose()    { [330,262,196].forEach((f,i)=>setTimeout(()=>tone(f,0.3,"sawtooth"), i*180)); }
+
+  /* ------------------------- Word selection ------------------------ */
+  function currentList() {
+    if (state.setName === "__custom__") return state.customWords;
+    return WORD_SETS[state.setName] || [];
+  }
+
+  function pickWord() {
+    const list = currentList();
+    if (!list.length) return null;
+    // Avoid immediately repeating the same word when possible.
+    let choice, tries = 0;
+    do {
+      choice = list[Math.floor(Math.random() * list.length)];
+      tries++;
+    } while (list.length > 1 && choice[0] === state.word && tries < 10);
+    return choice;
+  }
+
+  function newGame(secret) {
+    let entry;
+    if (secret) {
+      entry = secret; // [word, hint]
+      state.setName = "__secret__";
+    } else if (state.setName === "__secret__") {
+      // After a secret round, fall back to the first real set.
+      state.setName = "Animals";
+      el.category.value = "Animals";
+      entry = pickWord();
+    } else {
+      entry = pickWord();
+    }
+
+    if (!entry) {
+      el.word.innerHTML = '<span style="color:var(--muted);font-size:1rem">No words in this set — add some with “Custom words”.</span>';
+      el.keyboard.querySelectorAll(".key").forEach(k => k.disabled = true);
+      return;
+    }
+
+    state.word = entry[0];
+    state.hint = entry[1] || "";
+    state.guessed = new Set();
+    state.wrong = 0;
+    state.status = "playing";
+
+    el.categoryLabel.textContent =
+      state.setName === "__custom__" ? "Custom words"
+      : state.setName === "__secret__" ? "Secret word"
+      : state.setName;
+
+    render();
+  }
+
+  /* ----------------------------- Guess ----------------------------- */
+  function guess(letter) {
+    if (state.status !== "playing") return;
+    const n = normalize(letter);
+    if (!n || state.guessed.has(n)) return;
+    state.guessed.add(n);
+
+    // Does the word contain this (normalized) letter?
+    const hit = Array.from(state.word).some(ch => isLetter(ch) && normalize(ch) === n);
+    if (hit) {
+      playCorrect();
+    } else {
+      state.wrong++;
+      playWrong();
+    }
+
+    // Check win/lose
+    const won = Array.from(state.word)
+      .filter(isLetter)
+      .every(ch => state.guessed.has(normalize(ch)));
+
+    if (won) {
+      state.status = "won";
+      state.wins++;
+      playWin();
+    } else if (state.wrong >= MAX_WRONG) {
+      state.status = "lost";
+      state.losses++;
+      playLose();
+    }
+    render();
+  }
+
+  /* ----------------------------- Render ---------------------------- */
+  function render() {
+    // Word slots
+    el.word.innerHTML = "";
+    Array.from(state.word).forEach(ch => {
+      const slot = document.createElement("span");
+      if (!isLetter(ch)) {
+        slot.className = "letter-slot space";
+        slot.textContent = ch === " " ? " " : ch; // show spaces/punctuation
+      } else {
+        const known = state.guessed.has(normalize(ch));
+        const reveal = known || state.status === "lost";
+        slot.className = "letter-slot" + (reveal ? " revealed" : "") +
+                         (!known && state.status === "lost" ? " missed" : "");
+        slot.textContent = reveal ? ch : " ";
+      }
+      el.word.appendChild(slot);
+    });
+
+    // Hangman parts
+    el.parts.forEach((p, i) => p.classList.toggle("show", i < state.wrong));
+    el.gallows.classList.toggle("danger", state.wrong >= MAX_WRONG - 1);
+
+    // Lives
+    const left = MAX_WRONG - state.wrong;
+    el.lives.textContent = state.status === "playing"
+      ? "❤️".repeat(left) + "  (" + left + " guess" + (left === 1 ? "" : "es") + " left)"
+      : "";
+
+    // Hint
+    el.hintRow.innerHTML = "";
+    if (state.hint) {
+      if (state.showHint || state.status !== "playing") {
+        el.hintRow.innerHTML = 'Hint: <span class="hint-text">' + escapeHtml(state.hint) + "</span>";
+      } else {
+        const b = document.createElement("button");
+        b.className = "linklike";
+        b.textContent = "💡 Show hint";
+        b.onclick = () => { el.hintRow.innerHTML = 'Hint: <span class="hint-text">' + escapeHtml(state.hint) + "</span>"; };
+        el.hintRow.appendChild(b);
+      }
+    }
+
+    // Keyboard states
+    el.keyboard.querySelectorAll(".key").forEach(btn => {
+      const n = btn.dataset.letter;
+      btn.classList.remove("correct", "wrong");
+      btn.disabled = state.status !== "playing" || state.guessed.has(n);
+      if (state.guessed.has(n)) {
+        const hit = Array.from(state.word).some(ch => isLetter(ch) && normalize(ch) === n);
+        btn.classList.add(hit ? "correct" : "wrong");
+      }
+    });
+
+    // Banner
+    el.banner.className = "banner";
+    if (state.status === "won") {
+      el.banner.classList.add("win");
+      el.banner.innerHTML = "🎉 You got it! Well done! <span class='answer'>The word was: " + escapeHtml(state.word) + "</span>";
+    } else if (state.status === "lost") {
+      el.banner.classList.add("lose");
+      el.banner.innerHTML = "💀 Out of guesses! <span class='answer'>The word was: " + escapeHtml(state.word) + "</span>";
+    }
+
+    // Scores
+    el.winCount.textContent = state.wins;
+    el.lossCount.textContent = state.losses;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  /* --------------------------- Keyboard UI ------------------------- */
+  function buildKeyboard() {
+    const rows = ["abcdefghij", "klmnopqrs", "tuvwxyz"];
+    el.keyboard.innerHTML = "";
+    rows.forEach(r => {
+      const row = document.createElement("div");
+      row.className = "krow";
+      Array.from(r).forEach(letter => {
+        const b = document.createElement("button");
+        b.className = "key";
+        b.textContent = letter;
+        b.dataset.letter = letter;
+        b.setAttribute("aria-label", "Letter " + letter);
+        b.onclick = () => guess(letter);
+        row.appendChild(b);
+      });
+      el.keyboard.appendChild(row);
+    });
+  }
+
+  /* ---------------------------- Modals ----------------------------- */
+  function openModal(m) { m.classList.add("open"); }
+  function closeModal(m) { m.classList.remove("open"); }
+
+  function parseCustom(text) {
+    return text.split("\n")
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const [w, h] = line.split("|");
+        return [w.trim(), (h || "").trim()];
+      })
+      .filter(pair => pair[0].length > 0);
+  }
+
+  /* ----------------------------- Setup ----------------------------- */
+  function init() {
+    // Populate category dropdown
+    Object.keys(WORD_SETS).forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name; opt.textContent = name;
+      el.category.appendChild(opt);
+    });
+    const customOpt = document.createElement("option");
+    customOpt.value = "__custom__"; customOpt.textContent = "⭐ My custom words";
+    el.category.appendChild(customOpt);
+
+    buildKeyboard();
+
+    // Restore preferences/scores from this browser (optional convenience)
+    try {
+      const saved = JSON.parse(localStorage.getItem("hangman") || "{}");
+      if (typeof saved.wins === "number") state.wins = saved.wins;
+      if (typeof saved.losses === "number") state.losses = saved.losses;
+      if (Array.isArray(saved.customWords)) state.customWords = saved.customWords;
+      if (typeof saved.showHint === "boolean") state.showHint = saved.showHint;
+      if (typeof saved.sound === "boolean") state.sound = saved.sound;
+    } catch (e) {}
+    el.hintToggle.checked = state.showHint;
+    el.soundToggle.checked = state.sound;
+
+    // Events
+    el.category.addEventListener("change", () => {
+      if (el.category.value === "__custom__" && state.customWords.length === 0) {
+        openModal(el.customModal);
+        el.customInput.focus();
+        return;
+      }
+      state.setName = el.category.value;
+      newGame();
+    });
+
+    el.newWordBtn.addEventListener("click", () => newGame());
+
+    el.customBtn.addEventListener("click", () => {
+      el.customInput.value = state.customWords
+        .map(p => p[1] ? p[0] + " | " + p[1] : p[0]).join("\n");
+      openModal(el.customModal);
+      el.customInput.focus();
+    });
+    el.customCancel.addEventListener("click", () => closeModal(el.customModal));
+    el.customSave.addEventListener("click", () => {
+      const words = parseCustom(el.customInput.value);
+      if (!words.length) { el.customInput.focus(); return; }
+      state.customWords = words;
+      state.setName = "__custom__";
+      el.category.value = "__custom__";
+      save();
+      closeModal(el.customModal);
+      newGame();
+    });
+
+    el.secretBtn.addEventListener("click", () => {
+      el.secretInput.value = "";
+      el.secretHint.value = "";
+      openModal(el.secretModal);
+      el.secretInput.focus();
+    });
+    el.secretCancel.addEventListener("click", () => closeModal(el.secretModal));
+    function startSecret() {
+      const w = el.secretInput.value.trim();
+      if (!w) { el.secretInput.focus(); return; }
+      closeModal(el.secretModal);
+      newGame([w, el.secretHint.value.trim()]);
+    }
+    el.secretSave.addEventListener("click", startSecret);
+    el.secretInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); startSecret(); } });
+
+    el.hintToggle.addEventListener("change", () => { state.showHint = el.hintToggle.checked; save(); render(); });
+    el.soundToggle.addEventListener("change", () => { state.sound = el.soundToggle.checked; save(); });
+
+    el.fullscreenBtn.addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen && document.exitFullscreen();
+      }
+    });
+
+    // Close modals by clicking the backdrop
+    [el.customModal, el.secretModal].forEach(m => {
+      m.addEventListener("click", e => { if (e.target === m) closeModal(m); });
+    });
+
+    // Physical keyboard
+    document.addEventListener("keydown", e => {
+      if (el.customModal.classList.contains("open") || el.secretModal.classList.contains("open")) return;
+      if (e.key === "Enter") { newGame(); return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k.length === 1 && /[a-z]/.test(k)) guess(k);
+    });
+
+    newGame();
+  }
+
+  function save() {
+    try {
+      localStorage.setItem("hangman", JSON.stringify({
+        wins: state.wins, losses: state.losses,
+        customWords: state.customWords,
+        showHint: state.showHint, sound: state.sound
+      }));
+    } catch (e) {}
+  }
+
+  // Persist scores when they change (wrap render).
+  const _render = render;
+  render = function () { _render(); save(); };
+
+  init();
+})();
+</script>
+</body>
+</html>
